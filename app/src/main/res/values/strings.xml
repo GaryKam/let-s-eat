@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Let\'s Eat</string>
-    <string name="permission_rationale">Location permission is used to find the best places nearby.</string>
+    <string name="permission_location">Location Permission</string>
+    <string name="permission_location_rationale">Location data is used to find the best places nearby.</string>
 </resources>

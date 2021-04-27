@@ -7,9 +7,9 @@ import android.location.Criteria
 import android.location.LocationManager
 import android.os.Bundle
 import android.util.Log
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.google.android.material.snackbar.Snackbar
 import okhttp3.*
 import java.io.IOException
 
@@ -39,8 +39,17 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "Request was interrupted.")
                 grantResults[0] == PackageManager.PERMISSION_GRANTED ->
                     Log.d(TAG, "Request was granted.")
-                else ->
+                else -> {
                     Log.d(TAG, "Request was denied.")
+
+                    if (shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        AlertDialog.Builder(this)
+                            .setTitle(R.string.permission_location)
+                            .setMessage(R.string.permission_location_rationale)
+                            .setNeutralButton("Ok") { dialog, _ -> dialog.dismiss() }
+                            .show()
+                    }
+                }
             }
         }
     }
@@ -51,7 +60,11 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_DENIED
         ) {
-            requestPermissions()
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE
+            )
             return null
         }
 
@@ -63,24 +76,6 @@ class MainActivity : AppCompatActivity() {
         val location = locationManager.getLastKnownLocation(provider)
 
         return if (location == null) null else Pair(location.latitude, location.longitude)
-    }
-
-    private fun requestPermissions() {
-        if (shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            Snackbar.make(
-                findViewById(R.id.activity_main),
-                R.string.permission_rationale,
-                Snackbar.LENGTH_LONG
-            )
-                .setText("Ok")
-                .show()
-        }
-
-        ActivityCompat.requestPermissions(
-            this,
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-            REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE
-        )
     }
 
     private fun getNearbyPlaces(latitude: Double, longitude: Double) {
