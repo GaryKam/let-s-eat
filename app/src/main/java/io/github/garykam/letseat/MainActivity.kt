@@ -7,10 +7,13 @@ import android.location.Criteria
 import android.location.LocationManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import okhttp3.*
+import org.json.JSONObject
 import java.io.IOException
 
 private const val TAG = "MainActivity"
@@ -23,8 +26,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        getLocation()?.let {
-            getNearbyPlaces(it.first, it.second)
+        findViewById<Button>(R.id.button_eat).setOnClickListener {
+            val location = getLocation()
+
+            if (location == null) {
+                findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
+            } else {
+                getNearbyPlace(location.first, location.second)
+            }
         }
     }
 
@@ -46,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                         AlertDialog.Builder(this)
                             .setTitle(R.string.permission_location)
                             .setMessage(R.string.permission_location_rationale)
-                            .setNeutralButton("Ok") { dialog, _ -> dialog.dismiss() }
+                            .setNeutralButton(R.string.ok) { dialog, _ -> dialog.dismiss() }
                             .show()
                     }
                 }
@@ -65,6 +74,7 @@ class MainActivity : AppCompatActivity() {
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                 REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE
             )
+
             return null
         }
 
@@ -78,29 +88,43 @@ class MainActivity : AppCompatActivity() {
         return if (location == null) null else Pair(location.latitude, location.longitude)
     }
 
-    private fun getNearbyPlaces(latitude: Double, longitude: Double) {
-        val placesUrl = HttpUrl.Builder()
+    private fun getNearbyPlace(latitude: Double, longitude: Double) {
+        val placeUrl = HttpUrl.Builder()
             .scheme("https")
             .host("maps.googleapis.com")
             .addPathSegments("maps/api/place/findplacefromtext/json")
             .addQueryParameter("key", getApiKey())
-            .addQueryParameter("input", "food")
+            .addQueryParameter("input", "restaurant")
             .addQueryParameter("inputtype", "textquery")
             .addQueryParameter("fields", "name")
-            .addQueryParameter("locationbias", "circle:100@$latitude,$longitude")
+            .addQueryParameter("locationbias", "circle:16093@$latitude,$longitude")
             .build()
 
         val request = Request.Builder()
-            .url(placesUrl)
+            .url(placeUrl)
             .build()
 
         OkHttpClient().newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.d(TAG, e.stackTraceToString())
+                runOnUiThread {
+                    findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
-                Log.d(TAG, response.body!!.string())
+                val json = JSONObject(response.body!!.string())
+                val candidates = json.getJSONArray("candidates")
+
+                if (candidates.length() > 0) {
+                    val location = candidates.getJSONObject(0)
+
+                    if (location.has("name")) {
+                        runOnUiThread {
+                            findViewById<TextView>(R.id.text_location).text =
+                                location.getString("name")
+                        }
+                    }
+                }
             }
         })
     }
