@@ -12,31 +12,45 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import okhttp3.*
-import org.json.JSONObject
-import java.io.IOException
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 private const val TAG = "MainActivity"
 private const val REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE = 12
+private lateinit var placesService: PlacesService
 
 class MainActivity : AppCompatActivity() {
+    /**
+     * @return The API key to make Places API requests
+     */
     private external fun getApiKey(): String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://maps.googleapis.com/maps/api/place/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        placesService = retrofit.create(PlacesService::class.java)
+
+        // Display the name of a location when the button is clicked.
         findViewById<Button>(R.id.button_eat).setOnClickListener {
             val location = getLocation()
 
             if (location == null) {
                 findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
             } else {
-                getNearbyPlaces(location.first, location.second)
+                getNearbyPlace(location.first, location.second)
             }
         }
     }
 
+    /**
+     * Checks if location permission was granted.
+     */
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -63,6 +77,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * @return Your device's location, or null if permission is not granted
+     */
     private fun getLocation(): Pair<Double, Double>? {
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -88,42 +105,42 @@ class MainActivity : AppCompatActivity() {
         return if (location == null) null else Pair(location.latitude, location.longitude)
     }
 
-    private fun getNearbyPlaces(latitude: Double, longitude: Double) {
-        val placeUrl = HttpUrl.Builder()
-            .scheme("https")
-            .host("maps.googleapis.com")
-            .addPathSegments("maps/api/place/nearbysearch/json")
-            .addQueryParameter("key", getApiKey())
-            .addQueryParameter("location", "$latitude,$longitude")
-            .addQueryParameter("radius", "16093")
-            .addQueryParameter("keyword", "food")
-            .addQueryParameter("type", "restaurant")
-            .build()
+    /**
+     * Finds a location nearby using the Places API.
+     */
+    private fun getNearbyPlace(latitude: Double, longitude: Double) {
+        val options = mapOf(
+            "location" to "$latitude,$longitude",
+            "radius" to "16093",
+            "type" to "restaurant",
+            "keyword" to "food",
+            "key" to getApiKey()
+        )
 
-        val request = Request.Builder()
-            .url(placeUrl)
-            .build()
+        placesService.searchNearby(options).enqueue(object : retrofit2.Callback<Response> {
+            override fun onResponse(
+                call: retrofit2.Call<Response>, response: retrofit2.Response<Response>
+            ) {
+                val text = if (response.isSuccessful) {
+                    val results = response.body()!!.results
 
-        OkHttpClient().newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
+                    if (results.isEmpty()) {
+                        getString(R.string.missing_location)
+                    } else {
+                        results.random().name
+                    }
+                } else {
+                    getString(R.string.error_location)
+                }
+
                 runOnUiThread {
-                    findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
+                    findViewById<TextView>(R.id.text_location).text = text
                 }
             }
 
-            override fun onResponse(call: Call, response: Response) {
-                val json = JSONObject(response.body!!.string())
-                val results = json.getJSONArray("results")
-
-                if (results.length() > 0) {
-                    val location = results.getJSONObject(0)
-
-                    if (location.has("name")) {
-                        runOnUiThread {
-                            findViewById<TextView>(R.id.text_location).text =
-                                location.getString("name")
-                        }
-                    }
+            override fun onFailure(call: retrofit2.Call<Response>, t: Throwable) {
+                runOnUiThread {
+                    findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
                 }
             }
         })
@@ -131,6 +148,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         init {
+            // Allow API key to be read from cpp file.
             System.loadLibrary("native-lib")
         }
     }
