@@ -8,18 +8,26 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
-import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.squareup.picasso.Picasso
+import io.github.garykam.letseat.databinding.ActivityMainBinding
+import io.github.garykam.letseat.pojo.PlacesResponse
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 private const val TAG = "MainActivity"
 private const val REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE = 12
-private lateinit var placesService: PlacesService
+private const val PLACES_BASE_URL = "https://maps.googleapis.com/maps/api/place/"
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var placesService: PlacesService
+
     /**
      * @return The API key to make Places API requests
      */
@@ -27,10 +35,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://maps.googleapis.com/maps/api/place/")
+            .baseUrl(PLACES_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -41,7 +50,8 @@ class MainActivity : AppCompatActivity() {
             val location = getLocation()
 
             if (location == null) {
-                findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
+                binding.imageLocation.setImageDrawable(null)
+                binding.textLocation.setText(R.string.error_location)
             } else {
                 getNearbyPlace(location.first, location.second)
             }
@@ -97,11 +107,11 @@ class MainActivity : AppCompatActivity() {
 
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val criteria = Criteria()
-        criteria.accuracy = Criteria.ACCURACY_FINE
+        criteria.accuracy = Criteria.ACCURACY_COARSE
         val provider =
             locationManager.getBestProvider(criteria, true) ?: LocationManager.GPS_PROVIDER
         val location = locationManager.getLastKnownLocation(provider)
-
+        Log.d(TAG, "LOC $location")
         return if (location == null) null else Pair(location.latitude, location.longitude)
     }
 
@@ -117,31 +127,34 @@ class MainActivity : AppCompatActivity() {
             "key" to getApiKey()
         )
 
-        placesService.searchNearby(options).enqueue(object : retrofit2.Callback<Response> {
+        placesService.searchNearby(options).enqueue(object : Callback<PlacesResponse> {
             override fun onResponse(
-                call: retrofit2.Call<Response>, response: retrofit2.Response<Response>
+                call: Call<PlacesResponse>, response: Response<PlacesResponse>
             ) {
-                val text = if (response.isSuccessful) {
+                if (response.isSuccessful) {
                     val results = response.body()!!.results
 
                     if (results.isEmpty()) {
-                        getString(R.string.missing_location)
+                        binding.imageLocation.setImageDrawable(null)
+                        binding.textLocation.setText(R.string.missing_place)
                     } else {
-                        results.random().name
+                        val place = results.random()
+                        val imageUrl = "${PLACES_BASE_URL}photo?maxwidth=400" +
+                                "&photoreference=${place.photos[0].reference}&key=${getApiKey()}"
+
+                        // Display an image and name of the location.
+                        Picasso.get().load(imageUrl).into(binding.imageLocation)
+                        binding.textLocation.text = place.name
                     }
                 } else {
-                    getString(R.string.error_location)
-                }
-
-                runOnUiThread {
-                    findViewById<TextView>(R.id.text_location).text = text
+                    binding.imageLocation.setImageDrawable(null)
+                    binding.textLocation.setText(R.string.error_location)
                 }
             }
 
-            override fun onFailure(call: retrofit2.Call<Response>, t: Throwable) {
-                runOnUiThread {
-                    findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
-                }
+            override fun onFailure(call: Call<PlacesResponse>, t: Throwable) {
+                binding.imageLocation.setImageDrawable(null)
+                binding.textLocation.setText(R.string.error_location)
             }
         })
     }
