@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
             if (location == null) {
                 findViewById<TextView>(R.id.text_location).setText(R.string.error_location)
             } else {
-                getNearbyPlace(location.first, location.second)
+                getNearbyPlaces(location.first, location.second)
             }
         }
     }
@@ -80,7 +80,7 @@ class MainActivity : AppCompatActivity() {
 
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val criteria = Criteria()
-        criteria.accuracy = Criteria.ACCURACY_COARSE
+        criteria.accuracy = Criteria.ACCURACY_FINE
         val provider =
             locationManager.getBestProvider(criteria, true) ?: LocationManager.GPS_PROVIDER
         val location = locationManager.getLastKnownLocation(provider)
@@ -88,16 +88,16 @@ class MainActivity : AppCompatActivity() {
         return if (location == null) null else Pair(location.latitude, location.longitude)
     }
 
-    private fun getNearbyPlace(latitude: Double, longitude: Double) {
+    private fun getNearbyPlaces(latitude: Double, longitude: Double) {
         val placeUrl = HttpUrl.Builder()
             .scheme("https")
             .host("maps.googleapis.com")
-            .addPathSegments("maps/api/place/findplacefromtext/json")
+            .addPathSegments("maps/api/place/nearbysearch/json")
             .addQueryParameter("key", getApiKey())
-            .addQueryParameter("input", "restaurant")
-            .addQueryParameter("inputtype", "textquery")
-            .addQueryParameter("fields", "name")
-            .addQueryParameter("locationbias", "circle:16093@$latitude,$longitude")
+            .addQueryParameter("location", "$latitude,$longitude")
+            .addQueryParameter("radius", "16093")
+            .addQueryParameter("keyword", "food")
+            .addQueryParameter("type", "restaurant")
             .build()
 
         val request = Request.Builder()
@@ -113,10 +113,10 @@ class MainActivity : AppCompatActivity() {
 
             override fun onResponse(call: Call, response: Response) {
                 val json = JSONObject(response.body!!.string())
-                val candidates = json.getJSONArray("candidates")
+                val results = json.getJSONArray("results")
 
-                if (candidates.length() > 0) {
-                    val location = candidates.getJSONObject(0)
+                if (results.length() > 0) {
+                    val location = results.getJSONObject(0)
 
                     if (location.has("name")) {
                         runOnUiThread {
