@@ -14,8 +14,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.squareup.picasso.Picasso
 import io.github.garykam.letseat.R
 import io.github.garykam.letseat.databinding.ActivityMainBinding
-import io.github.garykam.letseat.utils.ApiHelper
-import io.github.garykam.letseat.viewmodel.MainViewModel
+import io.github.garykam.letseat.repository.PlacesRepository
 
 private const val TAG = "MainActivity"
 private const val REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE = 12
@@ -29,17 +28,19 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        viewModel = ViewModelProvider(this).get(MainViewModel::class.java)
+        viewModel = ViewModelProvider(
+            this,
+            MainViewModelFactory(PlacesRepository)
+        ).get(MainViewModel::class.java)
 
         binding.buttonEat.setOnClickListener { showPlace() }
 
         // Display an image and name of the location.
         viewModel.currentPlace.observe(this) { place ->
             if (place.photos != null) {
-                val imageUrl = "${ApiHelper.PLACES_BASE_URL}photo?maxwidth=400" +
-                        "&photoreference=${place.photos[0].reference}&key=${ApiHelper.getApiKey()}"
-
-                Picasso.get().load(imageUrl).into(binding.imageLocation)
+                Picasso.get()
+                    .load(viewModel.getImageUrl(place.photos[0].reference))
+                    .into(binding.imageLocation)
             }
 
             binding.textLocation.text = place.name
@@ -77,6 +78,8 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Displays the next available location.
+     * If no location is available,
+     * then [MainViewModel.loadNewPlaces] should be called.
      */
     private fun showPlace() {
         if (viewModel.hasPlaces()) {
@@ -89,7 +92,6 @@ class MainActivity : AppCompatActivity() {
                 binding.textLocation.setText(R.string.error_location)
             } else {
                 viewModel.loadNewPlaces(location.first, location.second)
-                viewModel.nextPlace()
             }
         }
     }

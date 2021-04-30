@@ -1,11 +1,11 @@
-package io.github.garykam.letseat.api
+package io.github.garykam.letseat.data.remote
 
-import io.github.garykam.letseat.model.Places
+import io.github.garykam.letseat.data.remote.model.Places
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.QueryMap
 
-interface PlacesService {
+interface PlacesApi {
     @GET("nearbysearch/json")
     fun searchNearby(
         @QueryMap options: Map<String, String>

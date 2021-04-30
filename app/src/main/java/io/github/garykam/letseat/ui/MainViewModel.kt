@@ -1,14 +1,17 @@
-package io.github.garykam.letseat.viewmodel
+package io.github.garykam.letseat.ui
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.garykam.letseat.model.Place
-import io.github.garykam.letseat.utils.ApiHelper
+import io.github.garykam.letseat.data.remote.model.Place
+import io.github.garykam.letseat.repository.PlacesRepository
+import io.github.garykam.letseat.util.ApiHelper
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val placesRepository: PlacesRepository
+) : ViewModel() {
     /* The location being displayed. */
     private val _currentPlace: MutableLiveData<Place> = MutableLiveData()
     val currentPlace: LiveData<Place> = _currentPlace
@@ -21,7 +24,7 @@ class MainViewModel : ViewModel() {
      */
     fun loadNewPlaces(latitude: Double, longitude: Double) {
         viewModelScope.launch {
-            val response = ApiHelper.getNearbyPlaces(latitude, longitude)
+            val response = PlacesRepository.getNearbyPlaces(latitude, longitude)
 
             if (response.isSuccessful) {
                 places.clear()
@@ -36,14 +39,23 @@ class MainViewModel : ViewModel() {
      * Get the next available location, and remove the previous one.
      */
     fun nextPlace() {
-        _currentPlace.value = places[1]
-        places.removeAt(0)
+        if (hasPlaces()) {
+            _currentPlace.value = places[1]
+            places.removeAt(0)
+        }
     }
 
     /**
-     * If this returns False, then [loadNewPlaces] should be called.
-     *
      * @return True if there are more locations ready to be displayed
      */
     fun hasPlaces() = places.size > 1
+
+    /**
+     * @param photoReference Used in the photo endpoint in Places API
+     * @return The photo URL
+     */
+    fun getImageUrl(photoReference: String): String {
+        return "${placesRepository.PLACES_BASE_URL}photo?maxwidth=400" +
+                "&photoreference=$photoReference&key=${ApiHelper.getApiKey()}"
+    }
 }

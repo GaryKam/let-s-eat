@@ -1,7 +1,8 @@
-package io.github.garykam.letseat.utils
+package io.github.garykam.letseat.repository
 
-import io.github.garykam.letseat.api.PlacesService
-import io.github.garykam.letseat.model.Places
+import io.github.garykam.letseat.data.remote.PlacesApi
+import io.github.garykam.letseat.data.remote.model.Places
+import io.github.garykam.letseat.util.ApiHelper
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -11,43 +12,33 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-object ApiHelper {
+object PlacesRepository {
     const val PLACES_BASE_URL = "https://maps.googleapis.com/maps/api/place/"
-    private val placesService: PlacesService
 
-    init {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(PLACES_BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        // Create Places API service.
-        placesService = retrofit.create(PlacesService::class.java)
-
-        // Allow API key to be read from cpp file.
-        System.loadLibrary("native-lib")
-    }
+    private val placesService = Retrofit.Builder()
+        .baseUrl(PLACES_BASE_URL)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+        .create(PlacesApi::class.java)
 
     /**
      * Finds locations near a point using the Places API.
      */
     suspend fun getNearbyPlaces(
-        latitude: Double,
-        longitude: Double
+        latitude: Double, longitude: Double
     ): Response<Places> {
         val options = mapOf(
             "location" to "$latitude,$longitude",
             "radius" to "16093",
             "type" to "restaurant",
             "keyword" to "food",
-            "key" to getApiKey()
+            "key" to ApiHelper.getApiKey()
         )
 
         return suspendCoroutine { continuation ->
             placesService.searchNearby(options).enqueue(object : Callback<Places> {
                 override fun onResponse(
-                    call: Call<Places>,
-                    response: Response<Places>
+                    call: Call<Places>, response: Response<Places>
                 ) {
                     continuation.resume(response)
                 }
@@ -58,9 +49,4 @@ object ApiHelper {
             })
         }
     }
-
-    /**
-     * @return The API key to make Places API requests
-     */
-    external fun getApiKey(): String
 }

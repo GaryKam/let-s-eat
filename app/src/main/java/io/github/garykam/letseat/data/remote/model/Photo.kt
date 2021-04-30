@@ -1,4 +1,4 @@
-package io.github.garykam.letseat.model
+package io.github.garykam.letseat.data.remote.model
 
 import com.google.gson.annotations.SerializedName
 
