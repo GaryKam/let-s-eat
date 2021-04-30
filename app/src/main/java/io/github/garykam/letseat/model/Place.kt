@@ -1,4 +1,4 @@
-package io.github.garykam.letseat.pojo
+package io.github.garykam.letseat.model
 
 import com.google.gson.annotations.SerializedName
 
@@ -9,6 +9,5 @@ data class Place(
     @SerializedName("place_id")
     val id: String,
     val name: String,
-    val icon: String,
     val photos: ArrayList<Photo>
 )

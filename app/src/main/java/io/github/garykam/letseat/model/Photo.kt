@@ -1,4 +1,4 @@
-package io.github.garykam.letseat.pojo
+package io.github.garykam.letseat.model
 
 import com.google.gson.annotations.SerializedName
 
