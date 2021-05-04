@@ -63,4 +63,7 @@ dependencies {
 
     // View model
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1"
+
+    // Google Play services
+    implementation 'com.google.android.gms:play-services-location:18.0.0'
 }

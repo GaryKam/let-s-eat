@@ -1,20 +1,26 @@
 package io.github.garykam.letseat.ui
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Criteria
-import android.location.LocationManager
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.squareup.picasso.Picasso
 import io.github.garykam.letseat.R
 import io.github.garykam.letseat.databinding.ActivityMainBinding
 import io.github.garykam.letseat.repository.PlacesRepository
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 private const val TAG = "MainActivity"
 private const val REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE = 12
@@ -22,6 +28,7 @@ private const val REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE = 12
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewModel: MainViewModel
+    private lateinit var locationProvider: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,14 +44,26 @@ class MainActivity : AppCompatActivity() {
 
         // Display an image and name of the location.
         viewModel.currentPlace.observe(this) { place ->
-            if (place.photos != null) {
-                Picasso.get()
-                    .load(viewModel.getImageUrl(place.photos[0].reference))
-                    .into(binding.imageLocation)
-            }
+            Picasso.get()
+                .load(viewModel.getImageUrl(place.photos[0].reference))
+                .into(binding.imageLocation)
 
             binding.textLocation.text = place.name
         }
+
+        when (GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)) {
+            ConnectionResult.SUCCESS -> Log.d(TAG, "Google API is available.")
+            ConnectionResult.SERVICE_MISSING,
+            ConnectionResult.SERVICE_DISABLED,
+            ConnectionResult.SERVICE_INVALID -> Log.d(TAG, "Google API is unavailable.")
+        }
+
+        locationProvider = LocationServices.getFusedLocationProviderClient(this)
+
+        GoogleApiAvailability.getInstance()
+            .checkApiAvailability(locationProvider)
+            .addOnSuccessListener { Log.d(TAG, "Location service is available.") }
+            .addOnFailureListener { Log.d(TAG, "Location service is unavailable.") }
     }
 
     /**
@@ -59,8 +78,11 @@ class MainActivity : AppCompatActivity() {
             when {
                 grantResults.isEmpty() ->
                     Log.d(TAG, "Request was interrupted.")
-                grantResults[0] == PackageManager.PERMISSION_GRANTED ->
+                grantResults[0] == PackageManager.PERMISSION_GRANTED -> {
                     Log.d(TAG, "Request was granted.")
+
+                    showPlace()
+                }
                 else -> {
                     Log.d(TAG, "Request was denied.")
 
@@ -85,13 +107,15 @@ class MainActivity : AppCompatActivity() {
         if (viewModel.hasPlaces()) {
             viewModel.nextPlace()
         } else {
-            val location = getLocation()
+            MainScope().launch {
+                val location = getLocation()
 
-            if (location == null) {
-                binding.imageLocation.setImageDrawable(null)
-                binding.textLocation.setText(R.string.error_location)
-            } else {
-                viewModel.loadNewPlaces(location.first, location.second)
+                if (location == null) {
+                    binding.imageLocation.setImageDrawable(null)
+                    binding.textLocation.setText(R.string.error_location)
+                } else {
+                    viewModel.loadNewPlaces(location.first, location.second)
+                }
             }
         }
     }
@@ -99,7 +123,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * @return Your device's location, or null if permission is not granted
      */
-    private fun getLocation(): Pair<Double, Double>? {
+    private suspend fun getLocation(): Pair<Double, Double>? {
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -114,13 +138,14 @@ class MainActivity : AppCompatActivity() {
             return null
         }
 
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val criteria = Criteria()
-        criteria.accuracy = Criteria.ACCURACY_COARSE
-        val provider =
-            locationManager.getBestProvider(criteria, true) ?: LocationManager.GPS_PROVIDER
-        val location = locationManager.getLastKnownLocation(provider)
-
-        return if (location == null) null else Pair(location.latitude, location.longitude)
+        return suspendCoroutine<Pair<Double, Double>> { continuation ->
+            locationProvider.lastLocation.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    continuation.resume(Pair(task.result.latitude, task.result.longitude))
+                } else {
+                    task.exception?.let { continuation.resumeWithException(it) }
+                }
+            }
+        }
     }
 }

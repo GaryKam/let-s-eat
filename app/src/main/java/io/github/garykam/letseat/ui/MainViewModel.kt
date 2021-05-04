@@ -24,7 +24,7 @@ class MainViewModel(
      */
     fun loadNewPlaces(latitude: Double, longitude: Double) {
         viewModelScope.launch {
-            val response = PlacesRepository.getNearbyPlaces(latitude, longitude)
+            val response = placesRepository.getNearbyPlaces(latitude, longitude)
 
             if (response.isSuccessful) {
                 places.clear()

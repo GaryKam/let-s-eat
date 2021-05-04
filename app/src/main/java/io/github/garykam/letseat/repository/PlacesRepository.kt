@@ -15,7 +15,7 @@ import kotlin.coroutines.suspendCoroutine
 object PlacesRepository {
     const val PLACES_BASE_URL = "https://maps.googleapis.com/maps/api/place/"
 
-    private val placesService = Retrofit.Builder()
+    private val placesApi = Retrofit.Builder()
         .baseUrl(PLACES_BASE_URL)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -36,15 +36,15 @@ object PlacesRepository {
         )
 
         return suspendCoroutine { continuation ->
-            placesService.searchNearby(options).enqueue(object : Callback<Places> {
+            placesApi.searchNearby(options).enqueue(object : Callback<Places> {
                 override fun onResponse(
                     call: Call<Places>, response: Response<Places>
                 ) {
                     continuation.resume(response)
                 }
 
-                override fun onFailure(call: Call<Places>, t: Throwable) {
-                    continuation.resumeWithException(t)
+                override fun onFailure(call: Call<Places>, throwable: Throwable) {
+                    continuation.resumeWithException(throwable)
                 }
             })
         }
