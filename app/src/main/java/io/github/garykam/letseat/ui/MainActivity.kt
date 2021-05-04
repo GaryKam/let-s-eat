@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -51,19 +52,20 @@ class MainActivity : AppCompatActivity() {
             binding.textLocation.text = place.name
         }
 
+        // Check if we have Google Play services.
         when (GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)) {
-            ConnectionResult.SUCCESS -> Log.d(TAG, "Google API is available.")
             ConnectionResult.SERVICE_MISSING,
             ConnectionResult.SERVICE_DISABLED,
-            ConnectionResult.SERVICE_INVALID -> Log.d(TAG, "Google API is unavailable.")
+            ConnectionResult.SERVICE_INVALID -> disableEatButton()
         }
 
+        // Get a location service from Google Play services.
         locationProvider = LocationServices.getFusedLocationProviderClient(this)
 
+        // Check if we have a location service.
         GoogleApiAvailability.getInstance()
             .checkApiAvailability(locationProvider)
-            .addOnSuccessListener { Log.d(TAG, "Location service is available.") }
-            .addOnFailureListener { Log.d(TAG, "Location service is unavailable.") }
+            .addOnFailureListener { disableEatButton() }
     }
 
     /**
@@ -77,12 +79,9 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE) {
             when {
                 grantResults.isEmpty() ->
-                    Log.d(TAG, "Request was interrupted.")
-                grantResults[0] == PackageManager.PERMISSION_GRANTED -> {
-                    Log.d(TAG, "Request was granted.")
-
+                    Log.d(TAG, "Location request was interrupted.")
+                grantResults[0] == PackageManager.PERMISSION_GRANTED ->
                     showPlace()
-                }
                 else -> {
                     Log.d(TAG, "Request was denied.")
 
@@ -140,12 +139,21 @@ class MainActivity : AppCompatActivity() {
 
         return suspendCoroutine<Pair<Double, Double>> { continuation ->
             locationProvider.lastLocation.addOnCompleteListener { task ->
-                if (task.isSuccessful) {
+                if (task.isSuccessful && task.result != null) {
                     continuation.resume(Pair(task.result.latitude, task.result.longitude))
                 } else {
                     task.exception?.let { continuation.resumeWithException(it) }
                 }
             }
+        }
+    }
+
+    /**
+     * Changes the functionality of the button to display an error message.
+     */
+    private fun disableEatButton() {
+        binding.buttonEat.setOnClickListener {
+            Toast.makeText(this, R.string.error_location_service, Toast.LENGTH_SHORT).show()
         }
     }
 }

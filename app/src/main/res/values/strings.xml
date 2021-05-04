@@ -3,7 +3,7 @@
     <string name="permission_location">Location Permission</string>
     <string name="permission_location_rationale">Location data is used to find the best places nearby.</string>
     <string name="error_location">Your location was not found!</string>
+    <string name="error_location_service">Location service was not found!</string>
     <string name="ok">@android:string/ok</string>
-    <string name="missing_place">No places were found!</string>
     <string name="desc_image_location">Image of the location</string>
 </resources>
