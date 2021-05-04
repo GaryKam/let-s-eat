@@ -12,6 +12,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.squareup.picasso.Picasso
 import io.github.garykam.letseat.R
@@ -69,6 +71,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Location may be null if the provider has none cached.
+     * Calls [FusedLocationProviderClient.requestLocationUpdates]
+     * to ensure we have a location to fallback to.
+     */
+    override fun onStart() {
+        super.onStart()
+
+        if (!checkPermission()) {
+            return
+        }
+
+        LocationRequest.create().apply {
+            interval = 60 * 1000 // milliseconds
+            fastestInterval = 5 * 1000
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        }.run {
+            val locationCallback = object : LocationCallback() {}
+
+            locationProvider.requestLocationUpdates(
+                this,
+                locationCallback,
+                mainLooper
+            )
+
+            // Continuous location updates are not necessary.
+            locationProvider.removeLocationUpdates(locationCallback)
+        }
+    }
+
+    /**
      * Checks if location permission was granted.
      */
     override fun onRequestPermissionsResult(
@@ -123,17 +155,7 @@ class MainActivity : AppCompatActivity() {
      * @return Your device's location, or null if permission is not granted
      */
     private suspend fun getLocation(): Pair<Double, Double>? {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_DENIED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE
-            )
-
+        if (!checkPermission()) {
             return null
         }
 
@@ -145,6 +167,27 @@ class MainActivity : AppCompatActivity() {
                     task.exception?.let { continuation.resumeWithException(it) }
                 }
             }
+        }
+    }
+
+    /**
+     * @return True if location permissions have been granted
+     */
+    private fun checkPermission(): Boolean {
+        return if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_DENIED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                REQUEST_LOCATION_PERMISSIONS_REQUEST_CODE
+            )
+
+            false
+        } else {
+            true
         }
     }
 
