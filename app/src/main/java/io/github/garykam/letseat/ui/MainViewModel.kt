@@ -55,7 +55,7 @@ class MainViewModel(
      * @return The photo URL
      */
     fun getImageUrl(photoReference: String): String {
-        return "${placesRepository.PLACES_BASE_URL}photo?maxwidth=400" +
+        return "${placesRepository.PLACES_BASE_URL}photo?maxwidth=1600" +
                 "&photoreference=$photoReference&key=${ApiHelper.getApiKey()}"
     }
 }
