@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.garykam.letseat.data.remote.model.Place
 import io.github.garykam.letseat.repository.PlacesRepository
 import io.github.garykam.letseat.util.ApiHelper
+import io.github.garykam.letseat.util.LocationHelper
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -20,9 +21,29 @@ class MainViewModel(
     private val places = mutableListOf<Place>()
 
     /**
+     * Gets the next place to display.
+     * If none are available, get some from the Places API.
+     */
+    fun getPlace(locationHelper: LocationHelper) {
+        if (hasPlaces()) {
+            nextPlace()
+        } else {
+            viewModelScope.launch {
+                val location = locationHelper.getLocation()
+
+                if (location == null) {
+                    _currentPlace.value = null
+                } else {
+                    loadNewPlaces(latitude = location.first, longitude = location.second)
+                }
+            }
+        }
+    }
+
+    /**
      * Finds locations near a point using the Places API.
      */
-    fun loadNewPlaces(latitude: Double, longitude: Double) {
+    private fun loadNewPlaces(latitude: Double, longitude: Double) {
         viewModelScope.launch {
             val response = placesRepository.getNearbyPlaces(latitude, longitude)
 
@@ -30,7 +51,9 @@ class MainViewModel(
                 places.clear()
                 places.addAll(response.body()!!.results)
 
-                nextPlace()
+                if (hasPlaces()) {
+                    nextPlace()
+                }
             }
         }
     }
@@ -38,17 +61,15 @@ class MainViewModel(
     /**
      * Get the next available location, and remove the previous one.
      */
-    fun nextPlace() {
-        if (hasPlaces()) {
-            _currentPlace.value = places[1]
-            places.removeAt(0)
-        }
+    private fun nextPlace() {
+        _currentPlace.value = places[1]
+        places.removeAt(0)
     }
 
     /**
      * @return True if there are more locations ready to be displayed
      */
-    fun hasPlaces() = places.size > 1
+    private fun hasPlaces() = places.size > 1
 
     /**
      * @param photoReference Used in the photo endpoint in Places API
