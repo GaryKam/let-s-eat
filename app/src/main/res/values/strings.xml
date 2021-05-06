@@ -6,4 +6,8 @@
     <string name="error_location_service">Location service was not found!</string>
     <string name="ok">@android:string/ok</string>
     <string name="desc_image_location">Image of the location</string>
+    <plurals name="distance_radius">
+        <item quantity="one">%d mile radius</item>
+        <item quantity="other">%d miles radius</item>
+    </plurals>
 </resources>

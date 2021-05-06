@@ -9,6 +9,7 @@ import io.github.garykam.letseat.repository.PlacesRepository
 import io.github.garykam.letseat.util.ApiHelper
 import io.github.garykam.letseat.util.LocationHelper
 import kotlinx.coroutines.launch
+import kotlin.math.floor
 
 class MainViewModel(
     private val placesRepository: PlacesRepository
@@ -23,8 +24,10 @@ class MainViewModel(
     /**
      * Gets the next place to display.
      * If none are available, get some from the Places API.
+     *
+     * @param radius Distance in miles
      */
-    fun getPlace(locationHelper: LocationHelper) {
+    fun getPlace(locationHelper: LocationHelper, radius: Int) {
         if (hasPlaces()) {
             nextPlace()
         } else {
@@ -34,7 +37,10 @@ class MainViewModel(
                 if (location == null) {
                     _currentPlace.value = null
                 } else {
-                    loadNewPlaces(latitude = location.first, longitude = location.second)
+                    loadNewPlaces(
+                        latitude = location.first, longitude = location.second,
+                        radius = radius
+                    )
                 }
             }
         }
@@ -43,9 +49,10 @@ class MainViewModel(
     /**
      * Finds locations near a point using the Places API.
      */
-    private fun loadNewPlaces(latitude: Double, longitude: Double) {
+    private fun loadNewPlaces(latitude: Double, longitude: Double, radius: Int) {
         viewModelScope.launch {
-            val response = placesRepository.getNearbyPlaces(latitude, longitude)
+            val radiusInMeters = floor(radius * 1609.344).toInt()
+            val response = placesRepository.getNearbyPlaces(latitude, longitude, radiusInMeters)
 
             if (response.isSuccessful) {
                 places.clear()
@@ -54,6 +61,8 @@ class MainViewModel(
                 if (hasPlaces()) {
                     nextPlace()
                 }
+            } else {
+                _currentPlace.value = null
             }
         }
     }

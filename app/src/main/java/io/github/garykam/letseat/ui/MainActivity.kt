@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -37,13 +38,35 @@ class MainActivity : AppCompatActivity() {
 
         binding.buttonEat.setOnClickListener { showPlace() }
 
+        binding.textDistance.apply {
+            val progress = binding.seekBarDistance.progress
+            text = resources.getQuantityString(R.plurals.distance_radius, progress, progress)
+        }
+
+        binding.seekBarDistance.setOnSeekBarChangeListener(object :
+            SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                binding.textDistance.text =
+                    resources.getQuantityString(R.plurals.distance_radius, progress, progress)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
         // Display an image and name of the location.
         viewModel.currentPlace.observe(this) { place ->
-            Picasso.get()
-                .load(viewModel.getImageUrl(place.photos[0].reference))
-                .into(binding.imageLocation)
+            if (place == null) {
+                binding.imageLocation.setImageDrawable(null)
+                binding.textLocation.setText(R.string.error_location)
+            } else {
+                Picasso.get()
+                    .load(viewModel.getImageUrl(place.photos[0].reference))
+                    .into(binding.imageLocation)
 
-            binding.textLocation.text = place.name
+                binding.textLocation.text = place.name
+            }
         }
     }
 
@@ -93,9 +116,13 @@ class MainActivity : AppCompatActivity() {
     private fun showPlace() {
         MainScope().launch {
             if (locationHelper.isAvailable()) {
-                viewModel.getPlace(locationHelper)
+                viewModel.getPlace(locationHelper, binding.seekBarDistance.progress)
             } else {
-                Toast.makeText(this@MainActivity, R.string.error_location_service, Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@MainActivity,
+                    R.string.error_location_service,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
