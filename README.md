@@ -2,7 +2,7 @@
 
 An easier way to find food using an Android app.
 
-![demo](./screenshots/demo.png)
+<img src="./screenshots/preview.png" alt="preview" width="200" height="355">
 
 Deciding on what to eat for lunch may be difficult,
 especially with so many options to choose from. This
