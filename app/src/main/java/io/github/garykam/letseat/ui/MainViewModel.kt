@@ -1,9 +1,6 @@
 package io.github.garykam.letseat.ui
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import io.github.garykam.letseat.data.remote.model.Place
 import io.github.garykam.letseat.repository.PlacesRepository
 import io.github.garykam.letseat.util.ApiHelper
@@ -87,5 +84,18 @@ class MainViewModel(
     fun getImageUrl(photoReference: String): String {
         return "${placesRepository.PLACES_BASE_URL}photo?maxwidth=1600" +
                 "&photoreference=$photoReference&key=${ApiHelper.getApiKey()}"
+    }
+}
+
+class MainViewModelFactory(
+    private val placesRepository: PlacesRepository
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return MainViewModel(placesRepository) as T
+        }
+
+        throw IllegalArgumentException("Unknown view model class")
     }
 }
