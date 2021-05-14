@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
         binding.seekBarDistance.setOnSeekBarChangeListener(object :
             SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                // Change the text view to display the seek bar's current value.
                 binding.textDistance.text =
                     resources.getQuantityString(R.plurals.distance_radius, progress, progress)
             }
